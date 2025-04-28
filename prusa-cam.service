@@ -1,0 +1,13 @@
+[Unit]
+Description=RPi Prusa Cam
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/prusa-cam/prusa-cam.sh
+# Discard both stdout so output isn't kept
+StandardOutput=null
+
+[Install]
+WantedBy=multi-user.target
