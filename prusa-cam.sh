@@ -68,9 +68,15 @@ TOKEN=
 QUALITY=65
 INTERVAL=10
 
-# Load the custom settings
-if [ -f 'prusa-cam-config' ]; then
-	source 'prusa-cam-config'
+if [ -f "$(dirname "$0")/prusa-cam-config" ]; then
+	# Load the custom settings from the same directory as the script
+	source "$(dirname "$0")/prusa-cam-config"
+elif  [ -f "/etc/default/prusa-cam.conf" ]; then
+	# Load the config from /etc/default/prusa-cam.conf.
+	source "/etc/default/prusa-cam.conf"
+else
+	echo >&2 "ERROR: Script not configured properly, you need to create a config file"
+	exit 255	
 fi
 
 # Hint to the user what resolution we're using based on the detected resolution and the config
