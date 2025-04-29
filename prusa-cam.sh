@@ -15,11 +15,56 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+
+# Check requirements
+which >/dev/null libcamera-still || echo >&2 "ERROR: You need libcamera-still for this script"
+which >/dev/null curl || echo >&2 "ERROR: You need curl for this script"
+
+# Detect highest resolution
+CAPS=$(libcamera-still --list-cameras)
+
+# Extract resolutions from camera info
+while read RES; do
+    WIDTH=$(echo $RES | cut -d'x' -f1)
+    HEIGHT=$(echo $RES | cut -d'x' -f2)	
+    
+	echo "Checking resolution: ${WIDTH}x${HEIGHT}"
+
+    # Skip if width equals height
+    if [ $WIDTH -eq $HEIGHT ]; then
+        continue
+    fi
+    
+    # Calculate aspect ratio using integer math	
+    if [ $WIDTH -gt $HEIGHT ]; then
+        RATIO=$(( WIDTH * 1000 / HEIGHT ))
+    else
+        RATIO=$(( HEIGHT * 1000 / WIDTH ))
+    fi	
+    
+    # Calculate difference from 1.33 (1330) for non-widescreen preference
+    RATIO_DIFF=$(( RATIO - 1330 ))
+    if [ $RATIO_DIFF -lt 0 ]; then
+        RATIO_DIFF=$(( -RATIO_DIFF ))
+    fi	
+    
+    # Update best resolution if this one is better
+    if [ -z "$BEST_RATIO_DIFF" ] || [ $RATIO_DIFF -lt $BEST_RATIO_DIFF ]; then
+        BEST_RATIO_DIFF=$RATIO_DIFF
+        BEST_WIDTH=$WIDTH
+        BEST_HEIGHT=$HEIGHT
+    fi
+done < <(echo "$CAPS" | grep -o '[0-9]\+x[0-9]\+')
+
+# Set the final dimensions
+WIDTH=$BEST_WIDTH
+HEIGHT=$BEST_HEIGHT
+
+echo "Detected resolution: ${WIDTH}x${HEIGHT}"
+
+# Load default values
 PRINTER=
 TOKEN=
-DEVICE='/dev/video0'
-INPUT=0
-RESOLUTION='640x480'
 QUALITY=65
 INTERVAL=10
 
@@ -28,17 +73,15 @@ if [ -f 'prusa-cam-config' ]; then
 	source 'prusa-cam-config'
 fi
 
+# Hint to the user what resolution we're using based on the detected resolution and the config
+echo "Selected resolution: ${WIDTH}x${HEIGHT}"
+
 # Check that we have sane values, or abort
-if [ -z "$PRINTER" -o -z "$TOKEN" -o -z "$RESOLUTION" -o -z "$QUALITY" ]; then
+if [ -z "$PRINTER" -o -z "$TOKEN" -o -z "$WIDTH" -o -z "$HEIGHT" -o -z "$QUALITY" ]; then
 	echo >&2 "ERROR: Script not configured properly"
 	exit 255
 fi
 
-################[ DO NOT CHANGE BELOW THIS POINT ]############################
-
-# Check requirements
-which >/dev/null fswebcam || echo >&2 "ERROR: You need fswebcam for this script"
-which >/dev/null curl || echo >&2 "ERROR: You need curl for this script"
 
 # Where to save temporary file
 TMPFILE=/tmp/prusa-cam.jpg
@@ -49,7 +92,7 @@ while true; do
 	START=$(date +%s)
 
 	echo "Grabbing still..."
-	fswebcam --no-banner -d ${DEVICE} -i ${INPUT} -r ${RESOLUTION} --jpeg ${QUALITY} ${TMPFILE} || exit 1
+	libcamera-still --width ${WIDTH} --height ${HEIGHT} --immediate -q ${QUALITY} -o ${TMPFILE} || exit 1
 
 	SIZE=$(ls -la "${TMPFILE}" | awk '{print $5}')
 

@@ -2,6 +2,12 @@
 
 # Install
 
+First, install the pre-reqs:
+
+```
+apt install libcamera-v4l2
+```
+
 Make sure this directory is in `/opt/prusa-cam`, next...
 
 Copy `prusa-cam.service` to `/etc/systemd/system/` like so
@@ -26,9 +32,9 @@ This is the printer id shown on the prusa connect page when you navigate to it
 
 The token needed to be able to upload the images
 
-## RESOLUTION
+## WIDTH and HEIGHT
 
-The WIDTHxHEIGHT you want the image to have, should ideally correspond to your camera's aspect ratio, if not actual resolution. If not provided, it will default to `640x480`
+The WIDTH and height HEIGHT you want the image to have, must be a supported resolution. By default picks highest resolution supported.
 
 ## QUALITY
 
